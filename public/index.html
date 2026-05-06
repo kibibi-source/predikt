@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PREDIKT — Joue. Réponds. Gagne.</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap');
+:root{--bg:#0c0c18;--surface:#13132a;--surface2:#1e1e3a;--accent:#FF6B2B;--accent2:#FFB800;--green:#00E676;--green2:#25D366;--red:#FF3D57;--blue:#4D7CFF;--text:#f0f0f5;--text2:#7a7a9e;--radius:16px;--glow:0 0 30px rgba(255,107,43,0.25)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.page{display:none;min-height:100vh;padding:20px 16px;max-width:480px;margin:0 auto}
+.page.active{display:flex;flex-direction:column}
+
+/* HEADER */
+.header{text-align:center;padding:24px 0 16px}
+.logo{font-family:'Space Mono',monospace;font-size:2rem;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-1px;text-transform:uppercase}
+.logo-sub{font-size:0.75rem;color:var(--text2);margin-top:2px;letter-spacing:3px;text-transform:uppercase}
+
+/* HOME BTN */
+.home-btn{position:fixed;top:16px;left:16px;width:40px;height:40px;background:var(--surface2);border:1px solid rgba(255,255,255,0.08);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:100;font-size:1.1rem;transition:all 0.3s;text-decoration:none}
+.home-btn:hover{background:var(--accent);border-color:var(--accent)}
+
+/* BANNER */
+.hero-banner{background:linear-gradient(135deg,var(--accent),#ff8f5a);border-radius:var(--radius);padding:22px;text-align:center;margin:12px 0;position:relative;overflow:hidden}
+.hero-banner::after{content:'';position:absolute;top:-50%;right:-30%;width:200px;height:200px;background:radial-gradient(circle,rgba(255,255,255,0.12) 0%,transparent 70%);border-radius:50%}
+.hero-amount{font-size:2.6rem;font-weight:900;color:#fff;line-height:1}
+.hero-amount span{font-size:1.1rem;font-weight:500}
+.hero-label{color:rgba(255,255,255,0.8);font-size:0.85rem;margin-top:4px}
+
+/* CARDS */
+.card{background:var(--surface);border-radius:var(--radius);padding:20px;border:1px solid rgba(255,255,255,0.06);margin:10px 0}
+.card-title{font-size:1rem;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+
+/* FORM */
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:0.78rem;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px}
+.form-input{width:100%;padding:13px 14px;background:var(--surface2);border:2px solid rgba(255,255,255,0.06);border-radius:12px;color:var(--text);font-family:'Outfit',sans-serif;font-size:0.95rem;outline:none;transition:all 0.3s}
+.form-input:focus{border-color:var(--accent);box-shadow:var(--glow)}
+.form-input::placeholder{color:var(--text2)}
+select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%237a7a9e' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:40px}
+textarea.form-input{min-height:80px;resize:vertical}
+
+/* BUTTONS */
+.btn{width:100%;padding:15px;border:none;border-radius:12px;font-family:'Outfit',sans-serif;font-size:1.05rem;font-weight:700;cursor:pointer;transition:all 0.3s;text-transform:uppercase;letter-spacing:1px;margin-top:8px}
+.btn:hover{transform:translateY(-2px)}
+.btn:active{transform:scale(0.98)}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.btn-orange{background:linear-gradient(135deg,var(--accent),#ff8f5a);color:#fff}
+.btn-orange:hover{box-shadow:var(--glow)}
+.btn-green{background:linear-gradient(135deg,var(--green2),#1dbf5a);color:#fff}
+.btn-green:hover{box-shadow:0 0 25px rgba(37,211,102,0.35)}
+.btn-outline{background:transparent;border:2px solid var(--surface2);color:var(--text2);font-size:0.9rem;text-transform:none;letter-spacing:0}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.btn-wa{background:#25D366;color:#fff}
+.btn-spin-main{background:linear-gradient(135deg,var(--green),#00c853);color:#fff;font-size:1.15rem;letter-spacing:2px;padding:18px}
+
+/* CHOICES */
+.choice-grid{display:flex;gap:10px;flex-wrap:wrap}
+.choice-btn{flex:1;min-width:calc(50% - 5px);padding:13px;text-align:center;background:var(--surface2);border:2px solid rgba(255,255,255,0.06);border-radius:12px;cursor:pointer;font-weight:600;font-size:0.9rem;transition:all 0.3s;color:var(--text)}
+.choice-btn:hover{border-color:var(--accent)}
+.choice-btn.selected{border-color:var(--accent);background:rgba(255,107,43,0.12);box-shadow:var(--glow)}
+.choice-btn.full{min-width:100%}
+.choice-btn.preview{opacity:0.55;cursor:default;pointer-events:none}
+.tag-grid{display:flex;flex-wrap:wrap;gap:7px}
+.tag-btn{padding:9px 14px;background:var(--surface2);border:2px solid rgba(255,255,255,0.06);border-radius:50px;cursor:pointer;font-size:0.82rem;font-weight:500;transition:all 0.3s;color:var(--text)}
+.tag-btn.selected{border-color:var(--accent);background:rgba(255,107,43,0.12);color:var(--accent)}
+
+/* MISC */
+.section-title{font-size:1.05rem;font-weight:700;margin:18px 0 10px;display:flex;align-items:center;gap:8px}
+.disclaimer{font-size:0.68rem;color:var(--text2);text-align:center;margin-top:14px;line-height:1.5}
+.link-switch{text-align:center;margin-top:16px;font-size:0.88rem;color:var(--text2)}
+.link-switch a{color:var(--accent);text-decoration:none;font-weight:600;cursor:pointer}
+.preview-box{background:var(--surface);border-radius:var(--radius);padding:16px;border:1px solid rgba(255,255,255,0.06);margin-top:20px}
+.preview-badge{display:inline-block;padding:4px 12px;background:rgba(255,107,43,0.12);color:var(--accent);border-radius:50px;font-size:0.72rem;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px}
+.confirm-box{text-align:center;padding:40px 20px;animation:popIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275)}
+.confirm-icon{font-size:3.5rem;margin-bottom:14px}
+.confirm-title{font-size:1.4rem;font-weight:700;margin-bottom:6px}
+.confirm-sub{color:var(--text2);font-size:0.9rem;line-height:1.5}
+@keyframes popIn{0%{transform:scale(0.5);opacity:0}100%{transform:scale(1);opacity:1}}
+.countdown-bar{background:var(--surface);border-radius:var(--radius);padding:14px;text-align:center;margin:14px 0;border:1px solid rgba(255,255,255,0.06)}
+.countdown-label{font-size:0.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px}
+.countdown-time{font-family:'Space Mono',monospace;font-size:1.8rem;font-weight:700;color:var(--accent);margin-top:4px}
+.stats-row{display:flex;gap:10px;margin:12px 0}
+.stat-card{flex:1;background:var(--surface);border-radius:12px;padding:12px;text-align:center;border:1px solid rgba(255,255,255,0.06)}
+.stat-num{font-size:1.5rem;font-weight:800;color:var(--accent)}
+.stat-label{font-size:0.68rem;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+.question-image{width:100%;max-height:280px;object-fit:cover;border-radius:12px;margin-bottom:14px;border:2px solid rgba(255,255,255,0.06)}
+.admin-link{text-align:center;margin-top:20px}
+.admin-link a{color:var(--text2);font-size:0.7rem;text-decoration:none;opacity:0.4}
+
+/* WHEEL */
+.wheel-container{position:relative;width:300px;height:300px;margin:20px auto}
+.wheel-canvas{width:300px;height:300px}
+.wheel-pointer{position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:28px solid var(--accent);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));z-index:10}
+.wheel-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48px;height:48px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:50%;z-index:10;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.1rem;color:#fff;box-shadow:0 0 20px rgba(255,107,43,0.4)}
+.winner-display{text-align:center;padding:28px;background:linear-gradient(135deg,rgba(255,107,43,0.08),rgba(255,184,0,0.08));border:2px solid var(--accent);border-radius:var(--radius);margin-top:20px;animation:popIn 0.6s cubic-bezier(0.175,0.885,0.32,1.275)}
+.winner-name{font-size:1.8rem;font-weight:900;margin:8px 0}
+
+/* ADMIN */
+.admin-tabs{display:flex;gap:5px;margin:14px 0;overflow-x:auto;padding-bottom:4px}
+.admin-tab{padding:9px 14px;background:var(--surface);border:1px solid rgba(255,255,255,0.06);border-radius:50px;font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap;color:var(--text2);transition:all 0.3s}
+.admin-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.admin-section{display:none}.admin-section.active{display:block}
+.question-editor{background:var(--surface);border-radius:var(--radius);padding:16px;margin:10px 0;border:1px solid rgba(255,255,255,0.06)}
+.question-editor h3{font-size:0.88rem;color:var(--accent);margin-bottom:12px}
+.chart-bar-wrap{margin:7px 0}
+.chart-bar-label{display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:3px}
+.chart-bar-track{height:22px;background:var(--surface2);border-radius:6px;overflow:hidden}
+.chart-bar-fill{height:100%;border-radius:6px;display:flex;align-items:center;padding-left:8px;font-size:0.72rem;font-weight:700;color:#fff;transition:width 1s ease;min-width:28px}
+.data-table{width:100%;border-collapse:collapse;margin:10px 0;font-size:0.78rem}
+.data-table th{text-align:left;padding:8px 6px;color:var(--text2);font-weight:600;border-bottom:1px solid var(--surface2);text-transform:uppercase;font-size:0.68rem}
+.data-table td{padding:8px 6px;border-bottom:1px solid rgba(255,255,255,0.04)}
+.participant-item{display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--surface2);border-radius:8px;margin:5px 0;font-size:0.82rem}
+.btn-export{padding:10px 18px;background:var(--surface2);border:1px solid var(--text2);border-radius:8px;color:var(--text);font-family:'Outfit',sans-serif;font-size:0.82rem;cursor:pointer;transition:all 0.3s}
+.btn-export:hover{border-color:var(--accent);color:var(--accent)}
+.upload-zone{border:2px dashed rgba(255,255,255,0.1);border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:all 0.3s;margin-top:6px}
+.upload-zone:hover{border-color:var(--accent)}
+.upload-zone.has-image{border-style:solid;border-color:var(--accent);padding:0}
+.upload-zone img{width:100%;max-height:200px;object-fit:cover;border-radius:10px;display:block}
+.upload-text{color:var(--text2);font-size:0.82rem}
+.upload-text span{color:var(--accent);font-weight:600}
+
+/* SECURITY CARD */
+.security-card{background:var(--surface);border-radius:var(--radius);padding:18px;border:1px solid rgba(255,255,255,0.06);margin:10px 0}
+.security-card h3{font-size:0.9rem;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.security-info{background:var(--surface2);border-radius:10px;padding:12px;font-size:0.82rem;color:var(--accent);margin-bottom:14px}
+.badge-2fa{display:inline-block;padding:4px 10px;background:rgba(77,124,255,0.12);color:var(--blue);border-radius:6px;font-size:0.75rem;font-weight:600}
+
+.spacer{height:40px}
+.fade-in{animation:fadeIn 0.4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+#communeGroup{display:none}
+</style>
+</head>
+<body>
+
+<!-- HOME BTN (visible on all pages except home) -->
+<a class="home-btn" id="homeBtn" onclick="showPage('pageHome')" style="display:none;">🏠</a>
+
+<!-- ========== PAGE ACCUEIL ========== -->
+<div id="pageHome" class="page active">
+  <div class="header">
+    <div class="logo">PREDIKT</div>
+    <div class="logo-sub">Joue · Réponds · Gagne</div>
+  </div>
+
+  <div class="hero-banner">
+    <div class="hero-amount" id="homeGain">2 000 <span>FCFA</span></div>
+    <div class="hero-label">⏰ RDV à 21H pour le tirage 🔥</div>
+  </div>
+
+  <!-- RETURNING USER -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title">👋 Tu as déjà un profil</div>
+    <p style="font-size:0.85rem;color:var(--text2);margin-bottom:12px;">Connecte-toi avec ton numéro WhatsApp pour jouer plus vite.</p>
+    <button class="btn btn-green" onclick="showPage('pageLogin')">ME CONNECTER</button>
+  </div>
+
+  <!-- NEW USER -->
+  <div class="card">
+    <div class="card-title">🔥 Première visite</div>
+    <button class="btn btn-orange" onclick="showPage('pageRegister')">CRÉER MON PROFIL</button>
+  </div>
+
+  <!-- QUESTION PREVIEW ON HOME -->
+  <div id="homePreview" style="display:none;">
+    <div class="preview-box">
+      <div class="preview-badge">🔥 Question du jour</div>
+      <img id="homePreviewImg" style="display:none;width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-bottom:10px;">
+      <div id="homePreviewText" style="font-weight:600;font-size:0.95rem;margin-bottom:12px;line-height:1.4;"></div>
+      <div id="homePreviewChoices" class="choice-grid"></div>
+    </div>
+  </div>
+
+  <div class="admin-link"><a href="#" onclick="showPage('pageAdminLogin');return false;">⚙️</a></div>
+</div>
+
+<!-- ========== PAGE INSCRIPTION ========== -->
+<div id="pageRegister" class="page">
+  <div class="header">
+    <div class="logo">PREDIKT</div>
+    <div class="logo-sub">Crée ton profil</div>
+  </div>
+  <div class="hero-banner">
+    <div class="hero-amount" id="regGain">2 000 <span>FCFA</span></div>
+    <div class="hero-label">à gagner — Tirage 21h</div>
+  </div>
+  <div class="fade-in">
+    <div class="section-title">📝 Première visite — Crée ton profil</div>
+    <div class="form-group"><label class="form-label">Prénom</label><input type="text" class="form-input" id="regName" placeholder="Ex: Awa, Kevin..." autocomplete="off"></div>
+    <div class="form-group"><label class="form-label">Numéro WhatsApp</label><input type="tel" class="form-input" id="regPhone" placeholder="07 XX XX XX XX" autocomplete="off"></div>
+    <div class="form-group"><label class="form-label">Genre</label><div class="choice-grid" id="regGender"><div class="choice-btn" data-val="Homme" onclick="sel(this)">Homme</div><div class="choice-btn" data-val="Femme" onclick="sel(this)">Femme</div></div></div>
+    <div class="form-group"><label class="form-label">Tranche d'âge</label><div class="choice-grid" id="regAge"><div class="choice-btn" data-val="15-20" onclick="sel(this)">15-20</div><div class="choice-btn" data-val="21-25" onclick="sel(this)">21-25</div><div class="choice-btn" data-val="26-30" onclick="sel(this)">26-30</div><div class="choice-btn" data-val="31-35" onclick="sel(this)">31-35</div><div class="choice-btn" data-val="36+" onclick="sel(this)">36+</div></div></div>
+    <div class="form-group"><label class="form-label">Ville</label><select class="form-input" id="regCity" onchange="toggleCommune()"><option value="">Choisis ta ville</option><option>Abidjan</option><option>Bouaké</option><option>Yamoussoukro</option><option>San-Pédro</option><option>Daloa</option><option>Korhogo</option><option>Man</option><option>Autre</option></select></div>
+    <div class="form-group" id="communeGroup"><label class="form-label">Commune</label><select class="form-input" id="regCommune"><option value="">Choisis</option><option>Cocody</option><option>Yopougon</option><option>Marcory</option><option>Koumassi</option><option>Treichville</option><option>Plateau</option><option>Abobo</option><option>Adjamé</option><option>Port-Bouët</option><option>Riviera</option><option>Autre</option></select></div>
+    <div class="form-group"><label class="form-label">Ce qui t'intéresse (2 max)</label><div class="tag-grid" id="regInterests"><div class="tag-btn" data-val="Mode & Sneakers" onclick="selTag(this)">👟 Mode</div><div class="tag-btn" data-val="Musique" onclick="selTag(this)">🎵 Musique</div><div class="tag-btn" data-val="Sport" onclick="selTag(this)">⚽ Sport</div><div class="tag-btn" data-val="Tech" onclick="selTag(this)">📱 Tech</div><div class="tag-btn" data-val="Beauté" onclick="selTag(this)">💄 Beauté</div><div class="tag-btn" data-val="Business" onclick="selTag(this)">💰 Business</div><div class="tag-btn" data-val="Food" onclick="selTag(this)">🍗 Food</div></div></div>
+    <button class="btn btn-orange" onclick="submitReg()">🔥 JE M'INSCRIS ET JE JOUE</button>
+    <div class="disclaimer">En t'inscrivant, tu acceptes que tes réponses soient utilisées de manière anonyme. 1 seule participation par jour. Jeu gratuit sans obligation d'achat.</div>
+
+    <!-- QUESTION PREVIEW -->
+    <div id="regPreview" style="display:none;margin-top:20px;">
+      <div class="preview-box">
+        <div class="preview-badge">🔥 Question du jour</div>
+        <img id="regPreviewImg" style="display:none;width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-bottom:10px;">
+        <div id="regPreviewText" style="font-weight:600;font-size:0.95rem;margin-bottom:12px;line-height:1.4;"></div>
+        <div id="regPreviewChoices" class="choice-grid"></div>
+        <div style="text-align:center;margin-top:12px;padding:8px;background:rgba(255,107,43,0.08);border-radius:8px;"><span style="font-size:0.82rem;color:var(--accent);font-weight:600;">👆 Inscris-toi pour jouer !</span></div>
+      </div>
+    </div>
+    <div class="link-switch">Déjà inscrit ? <a onclick="showPage('pageLogin')">Connecte-toi</a></div>
+  </div>
+</div>
+
+<!-- ========== PAGE LOGIN ========== -->
+<div id="pageLogin" class="page">
+  <div class="header">
+    <div class="logo">PREDIKT</div>
+    <div class="logo-sub">Content de te revoir !</div>
+  </div>
+  <div class="hero-banner">
+    <div class="hero-amount" id="loginGain">2 000 <span>FCFA</span></div>
+    <div class="hero-label">à gagner — Tirage 21h</div>
+  </div>
+  <div class="fade-in" style="margin-top:16px;">
+    <div class="section-title">📱 Ton numéro WhatsApp</div>
+    <div class="form-group"><input type="tel" class="form-input" id="loginPhone" placeholder="07 XX XX XX XX" autocomplete="off"></div>
+    <button class="btn btn-green" onclick="loginUser()">🔥 C'EST PARTI</button>
+    <div id="loginPreview" style="display:none;margin-top:20px;">
+      <div class="preview-box">
+        <div class="preview-badge">🔥 Question du jour</div>
+        <img id="loginPreviewImg" style="display:none;width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-bottom:10px;">
+        <div id="loginPreviewText" style="font-weight:600;font-size:0.95rem;margin-bottom:12px;line-height:1.4;"></div>
+        <div id="loginPreviewChoices" class="choice-grid"></div>
+      </div>
+    </div>
+    <div class="link-switch">Première visite ? <a onclick="showPage('pageRegister')">Crée ton profil</a></div>
+  </div>
+</div>
+
+<!-- ========== PAGE QUESTION ========== -->
+<div id="pageQuestion" class="page">
+  <div class="header"><div class="logo">PREDIKT</div><div class="logo-sub">Question du jour</div></div>
+  <div class="hero-banner"><div class="hero-amount" id="qGain">2 000 <span>FCFA</span></div><div class="hero-label">à gagner — Tirage 21h</div></div>
+  <div class="countdown-bar"><div class="countdown-label">Tirage dans</div><div class="countdown-time" id="countdown">--:--:--</div></div>
+  <div id="qContent" class="fade-in">
+    <div class="section-title">🔥 Question du jour</div>
+    <img id="qImg" class="question-image" style="display:none;">
+    <div id="qText" style="font-size:1.05rem;font-weight:600;margin-bottom:14px;line-height:1.5;"></div>
+    <div id="qChoices" class="choice-grid"></div>
+    <button class="btn btn-orange" onclick="submitAnswer()" style="margin-top:18px;">✅ JE VALIDE</button>
+  </div>
+  <div id="qConfirm" class="confirm-box" style="display:none;">
+    <div class="confirm-icon">🎉</div>
+    <div class="confirm-title">C'est noté !</div>
+    <div class="confirm-sub">Résultat ce soir à 21h 🔥</div>
+    <div class="stats-row" style="margin-top:16px;">
+      <div class="stat-card"><div class="stat-num" id="sTotal">0</div><div class="stat-label">Participants</div></div>
+      <div class="stat-card"><div class="stat-num" id="sA">0%</div><div class="stat-label">A</div></div>
+      <div class="stat-card"><div class="stat-num" id="sB">0%</div><div class="stat-label">B</div></div>
+    </div>
+    <button class="btn btn-wa" onclick="shareWA()" style="margin-top:14px;">📲 Partage avec tes amis</button>
+    <button class="btn btn-outline" onclick="logout()">🔓 Déconnexion</button>
+  </div>
+</div>
+
+<!-- ========== ADMIN LOGIN ========== -->
+<div id="pageAdminLogin" class="page">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:14px;">
+    <div class="logo" style="font-size:1.6rem;">🔐 ADMIN</div>
+    <div class="form-group" style="width:100%;max-width:300px;"><label class="form-label">Email admin</label><input type="email" class="form-input" id="admEmail" placeholder="admin@predikt.ci"></div>
+    <div class="form-group" style="width:100%;max-width:300px;"><label class="form-label">Mot de passe</label><input type="password" class="form-input" id="admPass" placeholder="••••••••"></div>
+    <button class="btn btn-orange" style="max-width:300px;" onclick="admLogin()">Connexion</button>
+    <a href="#" style="color:var(--text2);font-size:0.8rem;" onclick="showPage('pageHome');return false;">← Retour</a>
+  </div>
+</div>
+
+<!-- ========== ADMIN PANEL ========== -->
+<div id="pageAdmin" class="page">
+  <div class="header"><div class="logo" style="font-size:1.5rem;">PREDIKT ADMIN</div></div>
+  <div class="admin-tabs">
+    <div class="admin-tab active" onclick="admTab('tQ',this)">📝 Question</div>
+    <div class="admin-tab" onclick="admTab('tW',this)">🎡 Tirage</div>
+    <div class="admin-tab" onclick="admTab('tI',this)">📊 Insights</div>
+    <div class="admin-tab" onclick="admTab('tU',this)">👥 Users</div>
+    <div class="admin-tab" onclick="admTab('tH',this)">📜 Archive</div>
+    <div class="admin-tab" onclick="admTab('tS',this)">🔐 Sécurité</div>
+  </div>
+
+  <!-- QUESTION -->
+  <div id="tQ" class="admin-section active">
+    <div class="question-editor">
+      <h3>⚙️ Publier la question du jour</h3>
+      <div class="form-group"><label class="form-label">Texte</label><textarea class="form-input" id="aQText" placeholder="Ex: Tu préfères 2 000 FCFA maintenant ou 10 000 dans 7 jours ?"></textarea></div>
+      <div class="form-group"><label class="form-label">Image (facultatif)</label><div class="upload-zone" id="upZone" onclick="document.getElementById('aQImg').click()"><div class="upload-text" id="upText">📷 <span>Clique</span> pour ajouter</div><img id="imgPrev" style="display:none;"><input type="file" id="aQImg" accept="image/*" onchange="prevImg(this)" style="display:none;"></div></div>
+      <div class="form-group"><label class="form-label">Ou lien image</label><input type="text" class="form-input" id="aQImgUrl" placeholder="https://..." oninput="prevUrl(this.value)"></div>
+      <div class="form-group"><label class="form-label">Choix A</label><input type="text" class="form-input" id="aCA" placeholder="Ex: 2 000 FCFA maintenant"></div>
+      <div class="form-group"><label class="form-label">Choix B</label><input type="text" class="form-input" id="aCB" placeholder="Ex: 10 000 dans 7 jours"></div>
+      <div class="form-group"><label class="form-label">Choix C (facultatif)</label><input type="text" class="form-input" id="aCC" placeholder="Vide si 2 choix"></div>
+      <div class="form-group"><label class="form-label">Gain (FCFA)</label><input type="number" class="form-input" id="aGain" value="2000"></div>
+      <button class="btn btn-orange" onclick="saveQ()">💾 PUBLIER</button>
+    </div>
+    <div class="stats-row"><div class="stat-card"><div class="stat-num" id="aPart">0</div><div class="stat-label">Réponses</div></div><div class="stat-card"><div class="stat-num" id="aUsers">0</div><div class="stat-label">Inscrits</div></div></div>
+  </div>
+
+  <!-- WHEEL -->
+  <div id="tW" class="admin-section">
+    <div class="section-title">🎡 Tirage au sort</div>
+    <p style="color:var(--text2);font-size:0.82rem;margin-bottom:14px;">Participants du jour.</p>
+    <div class="wheel-container"><div class="wheel-pointer"></div><canvas class="wheel-canvas" id="wCanvas" width="300" height="300"></canvas><div class="wheel-center">GO</div></div>
+    <button class="btn btn-spin-main" id="btnSpin" onclick="spin()">🎡 LANCER</button>
+    <div id="wResult" style="display:none;"></div>
+  </div>
+
+  <!-- INSIGHTS -->
+  <div id="tI" class="admin-section">
+    <div class="section-title">📊 Insights</div>
+    <div id="insContent"></div>
+    <button class="btn-export" onclick="expCSV()" style="margin-top:14px;">📥 Export CSV</button>
+  </div>
+
+  <!-- USERS -->
+  <div id="tU" class="admin-section">
+    <div class="section-title">👥 Utilisateurs</div>
+    <div id="uList"></div>
+  </div>
+
+  <!-- ARCHIVE -->
+  <div id="tH" class="admin-section">
+    <div class="section-title">📜 Gagnants</div>
+    <div id="wHist"></div>
+    <div class="section-title" style="margin-top:24px;">📋 Questions archivées</div>
+    <div id="qArch"></div>
+  </div>
+
+  <!-- SÉCURITÉ -->
+  <div id="tS" class="admin-section">
+    <div class="security-card">
+      <h3>🔒 Sécurité admin</h3>
+      <div class="security-info">Identifiant admin actuel : <strong id="secEmail">admin@predikt.ci</strong></div>
+      <div class="form-group"><label class="form-label">Nouvel email admin</label><input type="email" class="form-input" id="secNewEmail" placeholder="nouvel@email.com"></div>
+      <div class="form-group"><label class="form-label">Ancien mot de passe</label><input type="password" class="form-input" id="secOldPass"></div>
+      <div class="form-group"><label class="form-label">Nouveau mot de passe</label><input type="password" class="form-input" id="secNewPass" placeholder="Minimum 8 caractères"></div>
+      <div class="form-group"><label class="form-label">Confirmer le nouveau mot de passe</label><input type="password" class="form-input" id="secConfPass"></div>
+      <button class="btn btn-green" onclick="updateAdmCreds()">MODIFIER EMAIL / MOT DE PASSE</button>
+    </div>
+
+    <div class="security-card" style="margin-top:14px;">
+      <h3>📱 Authentification à deux facteurs — <span class="badge-2fa">plus tard</span></h3>
+      <div class="form-group"><label class="form-label">Téléphone admin pour 2FA</label><input type="tel" class="form-input" id="sec2FA" placeholder="Ex : +2250700000000"></div>
+      <button class="btn btn-outline" onclick="alert('La 2FA sera activée dans une prochaine mise à jour.')">ENREGISTRER LE TÉLÉPHONE 2FA</button>
+    </div>
+  </div>
+
+  <div class="spacer"></div>
+  <div style="text-align:center;margin:16px 0;"><a href="#" style="color:var(--text2);font-size:0.8rem;" onclick="showPage('pageHome');return false;">← Retour au site</a></div>
+</div>
+
+<script>
+const API=location.origin;let admPwd='',admToken='',curPhone=localStorage.getItem('pk_phone')||'',cache=null;
+let admEmailStored=localStorage.getItem('pk_adm_email')||'admin@predikt.ci';
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function jsArg(v){return JSON.stringify(String(v??''));}
+
+// API
+async function api(ep,o={}){const h={'Content-Type':'application/json'};if(admToken)h['x-admin-token']=admToken;const r=await fetch(API+ep,{...o,headers:{...h,...(o.headers||{})}});const d=await r.json();if(!r.ok)throw new Error(d.error||'Erreur');return d;}
+async function apiF(ep,fd){const h={};if(admToken)h['x-admin-token']=admToken;const r=await fetch(API+ep,{method:'POST',headers:h,body:fd});const d=await r.json();if(!r.ok)throw new Error(d.error||'Erreur');return d;}
+
+// NAV
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');document.getElementById('homeBtn').style.display=id==='pageHome'?'none':'flex';window.scrollTo(0,0);}
+function logout(){curPhone='';localStorage.removeItem('pk_phone');showPage('pageHome');}
+
+// UI
+function sel(el){el.parentElement.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('selected'));el.classList.add('selected');}
+function selTag(el){if(el.classList.contains('selected')){el.classList.remove('selected');return;}if(el.parentElement.querySelectorAll('.tag-btn.selected').length>=2)return;el.classList.add('selected');}
+function toggleCommune(){document.getElementById('communeGroup').style.display=document.getElementById('regCity').value==='Abidjan'?'block':'none';}
+
+// IMAGE
+function prevImg(i){if(i.files&&i.files[0]){const r=new FileReader();r.onload=e=>{document.getElementById('imgPrev').src=e.target.result;document.getElementById('imgPrev').style.display='block';document.getElementById('upText').style.display='none';document.getElementById('upZone').classList.add('has-image');};r.readAsDataURL(i.files[0]);document.getElementById('aQImgUrl').value='';}}
+function prevUrl(u){const img=document.getElementById('imgPrev'),txt=document.getElementById('upText'),z=document.getElementById('upZone');if(u){img.src=u;img.style.display='block';txt.style.display='none';z.classList.add('has-image');}else{img.style.display='none';txt.style.display='block';z.classList.remove('has-image');}}
+
+// COUNTDOWN
+setInterval(()=>{const n=new Date(),t=new Date();t.setHours(21,0,0,0);if(n>=t)t.setDate(t.getDate()+1);const d=t-n;const el=document.getElementById('countdown');if(el)el.textContent=`${String(Math.floor(d/36e5)).padStart(2,'0')}:${String(Math.floor((d%36e5)/6e4)).padStart(2,'0')}:${String(Math.floor((d%6e4)/1e3)).padStart(2,'0')}`;},1000);
+
+// PREVIEW (home, register, login)
+async function loadPreview(){
+  try{const d=await api('/api/question');if(!d.question)return;const q=d.question;
+  ['homeGain','regGain','loginGain'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML=q.gain.toLocaleString('fr-FR')+' <span>FCFA</span>';});
+  [['homePreview','homePreviewImg','homePreviewText','homePreviewChoices'],['regPreview','regPreviewImg','regPreviewText','regPreviewChoices'],['loginPreview','loginPreviewImg','loginPreviewText','loginPreviewChoices']].forEach(([wrap,img,txt,ch])=>{
+    const w=document.getElementById(wrap);if(!w)return;w.style.display='block';
+    const ie=document.getElementById(img);if(q.imageUrl){ie.src=q.imageUrl;ie.style.display='block';}else ie.style.display='none';
+    document.getElementById(txt).textContent=q.text;
+    const ce=document.getElementById(ch);ce.innerHTML='';
+    [{k:'A',l:q.choiceA},{k:'B',l:q.choiceB},...(q.choiceC?[{k:'C',l:q.choiceC}]:[])].forEach(c=>{ce.innerHTML+=`<div class="choice-btn full preview">${esc(c.k)} — ${esc(c.l)}</div>`;});
+  });}catch(e){}}
+
+// REGISTER
+async function submitReg(){
+  const n=document.getElementById('regName').value.trim(),p=document.getElementById('regPhone').value.trim(),g=document.querySelector('#regGender .selected'),a=document.querySelector('#regAge .selected'),c=document.getElementById('regCity').value,cm=document.getElementById('regCommune').value,int=[...document.querySelectorAll('#regInterests .selected')].map(t=>t.dataset.val);
+  if(!n||!p){alert('Prénom et WhatsApp obligatoires');return;}if(!g){alert('Choisis ton genre');return;}if(!a){alert('Choisis ta tranche d\'âge');return;}if(!c){alert('Choisis ta ville');return;}
+  try{await api('/api/register',{method:'POST',body:JSON.stringify({name:n,phone:p,gender:g.dataset.val,age:a.dataset.val,city:c,commune:c==='Abidjan'?cm:'',interests:int})});curPhone=p;localStorage.setItem('pk_phone',p);loadQ();showPage('pageQuestion');}catch(e){alert(e.message);}
+}
+
+// LOGIN
+async function loginUser(){const p=document.getElementById('loginPhone').value.trim();if(!p){alert('Entre ton numéro');return;}try{const c=await api(`/api/check/${p}`);if(!c.registered){alert('Ce numéro n\'est pas inscrit.');showPage('pageRegister');return;}curPhone=p;localStorage.setItem('pk_phone',p);loadQ();showPage('pageQuestion');}catch(e){alert(e.message);}}
+
+// QUESTION
+async function loadQ(){
+  try{const d=await api('/api/question');if(!d.question){document.getElementById('qContent').innerHTML='<div class="confirm-box"><div class="confirm-icon">⏳</div><div class="confirm-title">Pas de question</div><div class="confirm-sub">Reviens demain !</div></div>';document.getElementById('qConfirm').style.display='none';return;}
+  const q=d.question;document.getElementById('qGain').innerHTML=q.gain.toLocaleString('fr-FR')+' <span>FCFA</span>';document.getElementById('qText').textContent=q.text;
+  const ie=document.getElementById('qImg');if(q.imageUrl){ie.src=q.imageUrl;ie.style.display='block';}else ie.style.display='none';
+  const cd=document.getElementById('qChoices');cd.innerHTML='';
+  [{k:'A',l:q.choiceA},{k:'B',l:q.choiceB},...(q.choiceC?[{k:'C',l:q.choiceC}]:[])].forEach(c=>{const b=document.createElement('div');b.className='choice-btn full';b.dataset.val=c.k;b.textContent=c.k+' — '+c.l;b.onclick=function(){sel(this);};cd.appendChild(b);});
+  const ck=await api(`/api/check/${curPhone}`);if(ck.answeredToday)showSt(d.stats,q);
+  document.getElementById('qContent').style.display=ck.answeredToday?'none':'block';document.getElementById('qConfirm').style.display=ck.answeredToday?'block':'none';
+  }catch(e){console.error(e);}
+}
+
+async function submitAnswer(){const s=document.querySelector('#qChoices .selected');if(!s){alert('Choisis une réponse !');return;}try{const d=await api('/api/respond',{method:'POST',body:JSON.stringify({phone:curPhone,answer:s.dataset.val})});const qd=await api('/api/question');showSt(d.stats,qd.question);document.getElementById('qContent').style.display='none';document.getElementById('qConfirm').style.display='block';}catch(e){alert(e.message);}}
+
+function showSt(st,q){document.getElementById('sTotal').textContent=st.total;if(st.total>0){const a=(st.breakdown||[]).find(s=>s.answer==='A'),b=(st.breakdown||[]).find(s=>s.answer==='B');document.getElementById('sA').textContent=Math.round((a?a.count:0)/st.total*100)+'%';document.getElementById('sB').textContent=Math.round((b?b.count:0)/st.total*100)+'%';}}
+function shareWA(){window.open('https://wa.me/?text='+encodeURIComponent('🔥 Joue et gagne du cash sur PREDIKT ! ➡️ '+location.origin),'_blank');}
+
+// ADMIN
+async function admLogin(){const e=document.getElementById('admEmail').value.trim(),p=document.getElementById('admPass').value.trim();if(e!==admEmailStored){alert('Email incorrect');return;}try{const d=await api('/api/admin/login',{method:'POST',body:JSON.stringify({password:p})});admPwd=p;admToken=d.token||'';showPage('pageAdmin');loadAdm();document.getElementById('secEmail').textContent=admEmailStored;}catch(e){alert('Mot de passe incorrect');}}
+
+function admTab(id,btn){document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.admin-section').forEach(s=>s.classList.remove('active'));if(btn)btn.classList.add('active');document.getElementById(id).classList.add('active');if(id==='tW')loadWh();if(id==='tI')loadIns();if(id==='tU')loadUL();if(id==='tH')loadHist();}
+
+async function loadAdm(){try{const d=await api('/api/admin/insights');cache=d;document.getElementById('aPart').textContent=d.todayStats?d.todayStats.total:0;document.getElementById('aUsers').textContent=d.totalUsers;}catch(e){}}
+
+async function saveQ(){const t=document.getElementById('aQText').value.trim(),a=document.getElementById('aCA').value.trim(),b=document.getElementById('aCB').value.trim(),c=document.getElementById('aCC').value.trim(),g=document.getElementById('aGain').value,f=document.getElementById('aQImg').files[0],u=document.getElementById('aQImgUrl').value.trim();if(!t||!a||!b){alert('Question + A + B obligatoires');return;}try{const fd=new FormData();fd.append('text',t);fd.append('choiceA',a);fd.append('choiceB',b);fd.append('choiceC',c);fd.append('gain',g);if(f)fd.append('image',f);else if(u)fd.append('imageUrl',u);await apiF('/api/admin/question',fd);alert('✅ Question publiée !');document.getElementById('imgPrev').style.display='none';document.getElementById('upText').style.display='block';document.getElementById('upZone').classList.remove('has-image');loadAdm();}catch(e){alert(e.message);}}
+
+function updateAdmCreds(){const ne=document.getElementById('secNewEmail').value.trim(),op=document.getElementById('secOldPass').value,np=document.getElementById('secNewPass').value,cp=document.getElementById('secConfPass').value;if(op!==admPwd){alert('Ancien mot de passe incorrect');return;}if(np&&np.length<8){alert('Le nouveau mot de passe doit faire 8 caractères minimum');return;}if(np&&np!==cp){alert('Les mots de passe ne correspondent pas');return;}if(ne){admEmailStored=ne;localStorage.setItem('pk_adm_email',ne);document.getElementById('secEmail').textContent=ne;}alert('✅ Identifiants mis à jour ! (Note : le mot de passe serveur se change via la variable ADMIN_PASSWORD sur le serveur)');document.getElementById('secOldPass').value='';document.getElementById('secNewPass').value='';document.getElementById('secConfPass').value='';}
+
+// WHEEL
+let wA=0,wSpin=false,wP=[];
+async function loadWh(){try{const d=await api('/api/admin/participants');wP=d.participants||[];drawW();}catch(e){}}
+function drawW(){const cv=document.getElementById('wCanvas'),cx2d=cv.getContext('2d'),cx=150,cy=150,r=140;cx2d.clearRect(0,0,300,300);if(!wP.length){cx2d.fillStyle='#1e1e3a';cx2d.beginPath();cx2d.arc(cx,cy,r,0,Math.PI*2);cx2d.fill();cx2d.fillStyle='#7a7a9e';cx2d.font='14px Outfit';cx2d.textAlign='center';cx2d.fillText('Aucun participant',cx,cy);return;}const cl=['#FF6B2B','#FFB800','#00E676','#FF3D57','#7C4DFF','#00BCD4','#FF6EC7','#8BC34A','#FF9800','#E91E63','#3F51B5','#009688','#CDDC39','#795548','#607D8B','#F44336','#2196F3','#4CAF50','#FFC107','#9C27B0'];const n=wP.length,sl=Math.PI*2/n;for(let i=0;i<n;i++){const sa=wA+i*sl,ea=sa+sl;cx2d.beginPath();cx2d.moveTo(cx,cy);cx2d.arc(cx,cy,r,sa,ea);cx2d.closePath();cx2d.fillStyle=cl[i%cl.length];cx2d.fill();cx2d.strokeStyle='#0c0c18';cx2d.lineWidth=2;cx2d.stroke();cx2d.save();cx2d.translate(cx,cy);cx2d.rotate(sa+sl/2);cx2d.fillStyle='#fff';cx2d.font=`bold ${n>20?8:n>10?10:12}px Outfit`;cx2d.textAlign='right';const nm=wP[i].name;cx2d.fillText(nm.length>8?nm.slice(0,8)+'.':nm,r-15,4);cx2d.restore();}}
+function spin(){if(wSpin||!wP.length)return;wSpin=true;document.getElementById('btnSpin').disabled=true;document.getElementById('wResult').style.display='none';const n=wP.length,sl=Math.PI*2/n,wi=Math.floor(Math.random()*n),tc=wi*sl+sl/2,ta=Math.PI*1.5-tc+Math.PI*2*(8+Math.random()*4),sa=wA,dur=5000,st=Date.now();(function f(){const el=Date.now()-st,p=Math.min(el/dur,1);wA=sa+ta*(1-Math.pow(1-p,3));drawW();if(p<1)requestAnimationFrame(f);else{wSpin=false;document.getElementById('btnSpin').disabled=false;showWin(wP[wi]);}})();}
+async function showWin(w){const q=(await api('/api/question')).question,g=q?q.gain:2000;document.getElementById('wResult').style.display='block';document.getElementById('wResult').innerHTML=`<div class="winner-display"><div style="font-size:0.82rem;color:var(--accent2);text-transform:uppercase;letter-spacing:2px;">🎉 Gagnant</div><div class="winner-name">${esc(w.name)}</div><div style="color:var(--text2);font-size:0.85rem;">${esc(w.phone)}</div><div style="margin-top:10px;font-size:1.2rem;font-weight:800;color:var(--accent);">${Number(g||0).toLocaleString('fr-FR')} FCFA</div><button class="btn btn-orange" style="margin-top:14px;" onclick="saveWin(${jsArg(w.name)},${jsArg(w.phone)})">💾 Enregistrer</button></div>`;}
+async function saveWin(n,p){try{await api('/api/admin/winner',{method:'POST',body:JSON.stringify({name:n,phone:p})});alert('✅ Gagnant enregistré !');}catch(e){alert(e.message);}}
+
+// INSIGHTS
+async function loadIns(){try{const d=await api('/api/admin/insights');cache=d;let h='';
+if(d.todayStats&&d.todayStats.total>0){const ts=d.todayStats,q=ts.question;h+=`<div class="question-editor"><h3>🔥 Réponses (${Number(ts.total||0)})</h3>`;['A','B','C'].forEach(k=>{const c=Number(ts.answerBreakdown[k]||0);const l=k==='A'?q.choiceA:k==='B'?q.choiceB:q.choiceC;if(!l&&k==='C')return;const p=Math.round(c/ts.total*100);h+=`<div class="chart-bar-wrap"><div class="chart-bar-label"><span>${esc(k)} — ${esc(l)}</span><span>${p}%</span></div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${p}%;background:${k==='A'?'var(--accent)':k==='B'?'var(--accent2)':'var(--green)'};">${c}</div></div></div>`;});h+=`</div>`;}
+if(d.totalUsers>0){h+=`<div class="question-editor"><h3>👤 Genre (${Number(d.totalUsers||0)})</h3>`;d.genderStats.forEach(g=>{const p=Math.round(g.count/d.totalUsers*100);h+=`<div class="chart-bar-wrap"><div class="chart-bar-label"><span>${esc(g.gender)}</span><span>${p}%</span></div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${p}%;background:${g.gender==='Homme'?'#7C4DFF':'#FF6EC7'};">${Number(g.count||0)}</div></div></div>`;});h+=`</div>`;
+h+=`<div class="question-editor"><h3>📊 Âge</h3>`;d.ageStats.forEach(a=>{const p=Math.round(a.count/d.totalUsers*100);h+=`<div class="chart-bar-wrap"><div class="chart-bar-label"><span>${esc(a.age)}</span><span>${p}%</span></div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${p}%;background:var(--accent);">${Number(a.count||0)}</div></div></div>`;});h+=`</div>`;
+h+=`<div class="question-editor"><h3>📍 Villes</h3>`;d.cityStats.forEach(c=>{const p=Math.round(c.count/d.totalUsers*100);h+=`<div class="chart-bar-wrap"><div class="chart-bar-label"><span>${esc(c.city)}</span><span>${p}%</span></div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${p}%;background:var(--green);">${Number(c.count||0)}</div></div></div>`;});h+=`</div>`;
+if(Object.keys(d.interestCounts).length){h+=`<div class="question-editor"><h3>❤️ Intérêts</h3>`;Object.entries(d.interestCounts).sort((a,b)=>b[1]-a[1]).forEach(([i,c])=>{const p=Math.round(c/d.totalUsers*100);h+=`<div class="chart-bar-wrap"><div class="chart-bar-label"><span>${esc(i)}</span><span>${p}%</span></div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${p}%;background:#00BCD4;">${Number(c||0)}</div></div></div>`;});h+=`</div>`;}}
+if(!h)h='<p style="color:var(--text2);text-align:center;padding:30px;">Pas de données.</p>';document.getElementById('insContent').innerHTML=h;}catch(e){}}
+
+async function loadUL(){try{if(!cache)cache=await api('/api/admin/insights');const u=cache.users||[];let h=`<p style="color:var(--text2);font-size:0.82rem;margin-bottom:10px;">${u.length} inscrits</p>`;if(!u.length)h+='<p style="color:var(--text2);">Aucun.</p>';else{h+='<table class="data-table"><thead><tr><th>Prénom</th><th>WhatsApp</th><th>Ville</th><th>Âge</th></tr></thead><tbody>';u.forEach(x=>{h+=`<tr><td>${esc(x.name)}</td><td>${esc(x.phone)}</td><td>${esc(x.city)}${x.commune?' · '+esc(x.commune):''}</td><td>${esc(x.age)}</td></tr>`;});h+='</tbody></table>';}document.getElementById('uList').innerHTML=h;}catch(e){}}
+
+async function loadHist(){try{if(!cache)cache=await api('/api/admin/insights');const w=cache.winners||[];let wh='';if(!w.length)wh='<p style="color:var(--text2);padding:16px;">Aucun.</p>';else w.forEach(x=>{wh+=`<div class="participant-item"><div><div style="font-weight:600;">${esc(x.name)}</div><div style="font-size:0.72rem;color:var(--text2);">${esc(x.date)} — ${esc(x.phone)}</div></div><div style="font-weight:800;color:var(--accent);">${Number(x.gain||0).toLocaleString('fr-FR')} F</div></div>`;});document.getElementById('wHist').innerHTML=wh;
+const a=cache.archive||[];let ah='';if(!a.length)ah='<p style="color:var(--text2);padding:16px;">Aucune.</p>';else a.forEach(q=>{const t=Number(q.total_responses||0),pA=t?Math.round(q.count_a/t*100):0,pB=t?Math.round(q.count_b/t*100):0;ah+=`<div class="question-editor" style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.72rem;color:var(--text2);">📅 ${esc(q.date)}</span><span style="font-size:0.72rem;font-weight:700;color:var(--accent);">${Number(q.gain||0).toLocaleString('fr-FR')} F</span></div><div style="font-weight:600;margin-bottom:8px;font-size:0.9rem;">${esc(q.text)}</div><div class="chart-bar-wrap"><div class="chart-bar-label"><span>A — ${esc(q.choice_a)}</span><span>${pA}%</span></div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${pA}%;background:var(--accent);">${Number(q.count_a||0)}</div></div></div><div class="chart-bar-wrap"><div class="chart-bar-label"><span>B — ${esc(q.choice_b)}</span><span>${pB}%</span></div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${pB}%;background:var(--accent2);">${Number(q.count_b||0)}</div></div></div><div style="font-size:0.72rem;color:var(--text2);margin-top:4px;">👥 ${t}</div></div>`;});document.getElementById('qArch').innerHTML=ah;}catch(e){}}
+
+function expCSV(){fetch(API+'/api/admin/export',{headers:{'x-admin-token':admToken}}).then(r=>r.blob()).then(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='PREDIKT_export.csv';a.click();});}
+
+// INIT
+async function init(){
+  loadPreview();
+  if(curPhone){try{const c=await api(`/api/check/${curPhone}`);if(c.registered){loadQ();showPage('pageQuestion');}else showPage('pageHome');}catch(e){showPage('pageHome');}}
+  else showPage('pageHome');
+}
+init();
+</script>
+</body>
+</html>

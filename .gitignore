@@ -1,0 +1,14 @@
+node_modules/
+npm-debug.log*
+
+.env
+.env.*
+M.txt
+predikt.db
+predikt.db-*
+
+uploads/*
+!uploads/.gitkeep
+
+.DS_Store
+Thumbs.db
