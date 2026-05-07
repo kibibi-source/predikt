@@ -280,12 +280,13 @@ textarea.form-input{min-height:80px;resize:vertical}
 <div id="pageAdmin" class="page">
   <div class="header"><div class="logo" style="font-size:1.5rem;">PREDIKT ADMIN</div></div>
   <div class="admin-tabs">
-    <div class="admin-tab active" onclick="admTab('tQ',this)">📝 Question</div>
-    <div class="admin-tab" onclick="admTab('tW',this)">🎡 Tirage</div>
-    <div class="admin-tab" onclick="admTab('tI',this)">📊 Insights</div>
-    <div class="admin-tab" onclick="admTab('tU',this)">👥 Users</div>
-    <div class="admin-tab" onclick="admTab('tH',this)">📜 Archive</div>
-    <div class="admin-tab" onclick="admTab('tS',this)">🔐 Sécurité</div>
+    <div class="admin-tab active" onclick="admTab('tQ',this)">Question</div>
+    <div class="admin-tab" onclick="admTab('tW',this)">Tirage</div>
+    <div class="admin-tab" onclick="admTab('tI',this)">Insights</div>
+    <div class="admin-tab" onclick="admTab('tU',this)">Users</div>
+    <div class="admin-tab" onclick="admTab('tH',this)">Archive</div>
+    <div class="admin-tab" onclick="admTab('tT',this)">Test</div>
+    <div class="admin-tab" onclick="admTab('tS',this)">Securite</div>
   </div>
 
   <!-- QUESTION -->
@@ -334,7 +335,20 @@ textarea.form-input{min-height:80px;resize:vertical}
     <div id="qArch"></div>
   </div>
 
-  <!-- SÉCURITÉ -->
+
+  <!-- TEST -->
+  <div id="tT" class="admin-section">
+    <div class="section-title">Mode test</div>
+    <div class="question-editor">
+      <h3>Simuler des utilisateurs</h3>
+      <p style="color:var(--text2);font-size:0.82rem;margin-bottom:12px;">Ajoute des profils fictifs et des reponses pour tester les stats, la roue et les exports sans attendre de vrais joueurs.</p>
+      <div class="form-group"><label class="form-label">Nombre de faux participants</label><input type="number" class="form-input" id="testCount" value="30" min="1" max="100"></div>
+      <button class="btn btn-green" onclick="seedTest()">GENERER LES DONNEES TEST</button>
+      <button class="btn btn-outline" onclick="clearTest()">SUPPRIMER LES DONNEES TEST</button>
+    </div>
+  </div>
+
+  <!-- SECURITE -->
   <div id="tS" class="admin-section">
     <div class="security-card">
       <h3>🔒 Sécurité admin</h3>
@@ -450,7 +464,13 @@ h+=`<div class="question-editor"><h3>📍 Villes</h3>`;d.cityStats.forEach(c=>{c
 if(Object.keys(d.interestCounts).length){h+=`<div class="question-editor"><h3>❤️ Intérêts</h3>`;Object.entries(d.interestCounts).sort((a,b)=>b[1]-a[1]).forEach(([i,c])=>{const p=Math.round(c/d.totalUsers*100);h+=`<div class="chart-bar-wrap"><div class="chart-bar-label"><span>${esc(i)}</span><span>${p}%</span></div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${p}%;background:#00BCD4;">${Number(c||0)}</div></div></div>`;});h+=`</div>`;}}
 if(!h)h='<p style="color:var(--text2);text-align:center;padding:30px;">Pas de données.</p>';document.getElementById('insContent').innerHTML=h;}catch(e){}}
 
-async function loadUL(){try{if(!cache)cache=await api('/api/admin/insights');const u=cache.users||[];let h=`<p style="color:var(--text2);font-size:0.82rem;margin-bottom:10px;">${u.length} inscrits</p>`;if(!u.length)h+='<p style="color:var(--text2);">Aucun.</p>';else{h+='<table class="data-table"><thead><tr><th>Prénom</th><th>WhatsApp</th><th>Ville</th><th>Âge</th></tr></thead><tbody>';u.forEach(x=>{h+=`<tr><td>${esc(x.name)}</td><td>${esc(x.phone)}</td><td>${esc(x.city)}${x.commune?' · '+esc(x.commune):''}</td><td>${esc(x.age)}</td></tr>`;});h+='</tbody></table>';}document.getElementById('uList').innerHTML=h;}catch(e){}}
+async function loadUL(){try{cache=await api('/api/admin/insights');const u=cache.users||[];let h=`<p style="color:var(--text2);font-size:0.82rem;margin-bottom:10px;">${u.length} inscrits</p>`;if(!u.length)h+='<p style="color:var(--text2);">Aucun.</p>';else{h+='<table class="data-table"><thead><tr><th>Prenom</th><th>WhatsApp</th><th>Ville</th><th>Age</th><th></th></tr></thead><tbody>';u.forEach(x=>{h+=`<tr><td>${esc(x.name)}</td><td>${esc(x.phone)}</td><td>${esc(x.city)}${x.commune?' - '+esc(x.commune):''}</td><td>${esc(x.age)}</td><td><button class="btn-export" onclick="deleteUser(${Number(x.id)},${jsArg(x.name)})">Supprimer</button></td></tr>`;});h+='</tbody></table>';}document.getElementById('uList').innerHTML=h;}catch(e){alert(e.message);}}
+
+async function deleteUser(id,name){if(!confirm(`Supprimer ${name} et ses reponses ?`))return;try{await api(`/api/admin/users/${id}`,{method:'DELETE'});cache=null;loadAdm();loadUL();}catch(e){alert(e.message);}}
+
+async function seedTest(){const n=Number(document.getElementById('testCount').value)||30;try{await api('/api/admin/test-data',{method:'POST',body:JSON.stringify({count:n})});cache=null;alert('Donnees test ajoutees');loadAdm();}catch(e){alert(e.message);}}
+
+async function clearTest(){if(!confirm('Supprimer toutes les donnees test ?'))return;try{const d=await api('/api/admin/test-data',{method:'DELETE'});cache=null;alert(`${d.count||0} utilisateurs test supprimes`);loadAdm();}catch(e){alert(e.message);}}
 
 async function loadHist(){try{if(!cache)cache=await api('/api/admin/insights');const w=cache.winners||[];let wh='';if(!w.length)wh='<p style="color:var(--text2);padding:16px;">Aucun.</p>';else w.forEach(x=>{wh+=`<div class="participant-item"><div><div style="font-weight:600;">${esc(x.name)}</div><div style="font-size:0.72rem;color:var(--text2);">${esc(x.date)} — ${esc(x.phone)}</div></div><div style="font-weight:800;color:var(--accent);">${Number(x.gain||0).toLocaleString('fr-FR')} F</div></div>`;});document.getElementById('wHist').innerHTML=wh;
 const a=cache.archive||[];let ah='';if(!a.length)ah='<p style="color:var(--text2);padding:16px;">Aucune.</p>';else a.forEach(q=>{const t=Number(q.total_responses||0),pA=t?Math.round(q.count_a/t*100):0,pB=t?Math.round(q.count_b/t*100):0;ah+=`<div class="question-editor" style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:0.72rem;color:var(--text2);">📅 ${esc(q.date)}</span><span style="font-size:0.72rem;font-weight:700;color:var(--accent);">${Number(q.gain||0).toLocaleString('fr-FR')} F</span></div><div style="font-weight:600;margin-bottom:8px;font-size:0.9rem;">${esc(q.text)}</div><div class="chart-bar-wrap"><div class="chart-bar-label"><span>A — ${esc(q.choice_a)}</span><span>${pA}%</span></div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${pA}%;background:var(--accent);">${Number(q.count_a||0)}</div></div></div><div class="chart-bar-wrap"><div class="chart-bar-label"><span>B — ${esc(q.choice_b)}</span><span>${pB}%</span></div><div class="chart-bar-track"><div class="chart-bar-fill" style="width:${pB}%;background:var(--accent2);">${Number(q.count_b||0)}</div></div></div><div style="font-size:0.72rem;color:var(--text2);margin-top:4px;">👥 ${t}</div></div>`;});document.getElementById('qArch').innerHTML=ah;}catch(e){}}

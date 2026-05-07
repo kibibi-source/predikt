@@ -20,6 +20,8 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
   .filter(Boolean);
 
 let db;
+let pool;
+let dbMode = 'sqlite';
 
 if (!ADMIN_PASSWORD || ADMIN_PASSWORD.length < 12) {
   console.error('ADMIN_PASSWORD doit contenir au moins 12 caracteres.');
@@ -94,16 +96,47 @@ const upload = multer({
 });
 
 // ===================== SQL HELPERS =====================
-function run(sql, params = []) { db.run(sql, params); saveDb(); }
+function pgSql(sql) {
+  let i = 0;
+  return sql
+    .replace(/INTEGER PRIMARY KEY AUTOINCREMENT/g, 'SERIAL PRIMARY KEY')
+    .replace(/DATETIME/g, 'TIMESTAMPTZ')
+    .replace(/\?/g, () => `$${++i}`);
+}
 
-function get(sql, params = []) {
+function normalizeRow(row) {
+  if (!row) return row;
+  ['count', 'c', 'total_responses', 'count_a', 'count_b', 'count_c', 'gain', 'id', 'user_id', 'question_id', 'total'].forEach(k => {
+    if (row[k] !== undefined && row[k] !== null && row[k] !== '') row[k] = Number(row[k]);
+  });
+  return row;
+}
+
+async function run(sql, params = []) {
+  if (dbMode === 'postgres') {
+    await pool.query(pgSql(sql), params);
+    return;
+  }
+  db.run(sql, params);
+  saveDb();
+}
+
+async function get(sql, params = []) {
+  if (dbMode === 'postgres') {
+    const result = await pool.query(pgSql(sql), params);
+    return normalizeRow(result.rows[0] || null);
+  }
   const stmt = db.prepare(sql);
   stmt.bind(params);
   if (stmt.step()) { const row = stmt.getAsObject(); stmt.free(); return row; }
   stmt.free(); return null;
 }
 
-function all(sql, params = []) {
+async function all(sql, params = []) {
+  if (dbMode === 'postgres') {
+    const result = await pool.query(pgSql(sql), params);
+    return result.rows.map(normalizeRow);
+  }
   const stmt = db.prepare(sql);
   stmt.bind(params);
   const rows = [];
@@ -189,7 +222,7 @@ function requireAdmin(req, res, next) {
 }
 
 // ===================== ROUTES PUBLIQUES =====================
-app.post('/api/register', (req, res) => {
+app.post('/api/register', async (req, res) => {
   try {
     const name = cleanText(req.body.name, 60);
     const phone = cleanPhone(req.body.phone);
@@ -199,21 +232,21 @@ app.post('/api/register', (req, res) => {
     const commune = cleanText(req.body.commune, 80);
     const interests = Array.isArray(req.body.interests) ? req.body.interests.map(i => cleanText(i, 60)).slice(0, 2) : [];
     if (!name || !phone) return res.status(400).json({ error: 'Prénom et WhatsApp obligatoires' });
-    const existing = get('SELECT id FROM users WHERE phone = ?', [phone]);
+    const existing = await get('SELECT id FROM users WHERE phone = ?', [phone]);
     if (existing) return res.json({ success: true, userId: existing.id });
-    run('INSERT INTO users (name,phone,gender,age,city,commune,interests) VALUES (?,?,?,?,?,?,?)',
+    await run('INSERT INTO users (name,phone,gender,age,city,commune,interests) VALUES (?,?,?,?,?,?,?)',
       [name, phone, gender||'', age||'', city||'', commune||'', JSON.stringify(interests||[])]);
-    const user = get('SELECT id FROM users WHERE phone = ?', [phone]);
+    const user = await get('SELECT id FROM users WHERE phone = ?', [phone]);
     res.json({ success: true, userId: user ? user.id : 0 });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
-app.get('/api/question', (req, res) => {
+app.get('/api/question', async (req, res) => {
   try {
-    const q = getActiveQuestion();
+    const q = await getActiveQuestion();
     if (!q) return res.json({ question: null });
     const today = getToday();
-    const stats = all('SELECT answer, COUNT(*) as count FROM responses WHERE question_id=? AND date=? GROUP BY answer', [q.id, today]);
+    const stats = await all('SELECT answer, COUNT(*) as count FROM responses WHERE question_id=? AND date=? GROUP BY answer', [q.id, today]);
     res.json({
       question: { id:q.id, text:q.text, choiceA:q.choice_a, choiceB:q.choice_b, choiceC:q.choice_c||'', gain:q.gain, imageUrl:q.image_url||'', date:q.date },
       stats: { total: stats.reduce((s,r)=>s+r.count,0), breakdown: stats }
@@ -221,32 +254,32 @@ app.get('/api/question', (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
-app.post('/api/respond', (req, res) => {
+app.post('/api/respond', async (req, res) => {
   try {
     const phone = cleanPhone(req.body.phone);
     const answer = cleanAnswer(req.body.answer);
     if (!phone || !answer) return res.status(400).json({ error: 'Données manquantes' });
-    const user = get('SELECT * FROM users WHERE phone=?', [phone]);
+    const user = await get('SELECT * FROM users WHERE phone=?', [phone]);
     if (!user) return res.status(400).json({ error: 'Inscris-toi d\'abord.' });
-    const q = getActiveQuestion();
+    const q = await getActiveQuestion();
     if (!q) return res.status(400).json({ error: 'Pas de question active' });
     const today = getToday();
-    const already = get('SELECT id FROM responses WHERE phone=? AND date=?', [phone, today]);
+    const already = await get('SELECT id FROM responses WHERE phone=? AND date=?', [phone, today]);
     if (already) return res.status(400).json({ error: 'Tu as déjà joué aujourd\'hui !' });
-    run('INSERT INTO responses (user_id,question_id,phone,name,answer,date) VALUES (?,?,?,?,?,?)',
+    await run('INSERT INTO responses (user_id,question_id,phone,name,answer,date) VALUES (?,?,?,?,?,?)',
       [user.id, q.id, phone, user.name, answer, today]);
-    const stats = all('SELECT answer, COUNT(*) as count FROM responses WHERE question_id=? AND date=? GROUP BY answer', [q.id, today]);
+    const stats = await all('SELECT answer, COUNT(*) as count FROM responses WHERE question_id=? AND date=? GROUP BY answer', [q.id, today]);
     res.json({ success: true, stats: { total: stats.reduce((s,r)=>s+r.count,0), breakdown: stats } });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
-app.get('/api/check/:phone', (req, res) => {
+app.get('/api/check/:phone', async (req, res) => {
   try {
     const today = getToday();
     const phone = cleanPhone(req.params.phone);
     res.json({
-      registered: !!get('SELECT id FROM users WHERE phone=?', [phone]),
-      answeredToday: !!get('SELECT id FROM responses WHERE phone=? AND date=?', [phone, today])
+      registered: !!(await get('SELECT id FROM users WHERE phone=?', [phone])),
+      answeredToday: !!(await get('SELECT id FROM responses WHERE phone=? AND date=?', [phone, today]))
     });
   } catch (err) { res.status(500).json({ error: 'Erreur serveur' }); }
 });
@@ -257,7 +290,7 @@ app.post('/api/admin/login', (req, res) => {
   else res.status(401).json({ error: 'Mot de passe incorrect' });
 });
 
-app.post('/api/admin/question', requireAdmin, upload.single('image'), (req, res) => {
+app.post('/api/admin/question', requireAdmin, upload.single('image'), async (req, res) => {
   try {
     const text = cleanText(req.body.text, 500);
     const choiceA = cleanText(req.body.choiceA, 160);
@@ -265,52 +298,120 @@ app.post('/api/admin/question', requireAdmin, upload.single('image'), (req, res)
     const choiceC = cleanText(req.body.choiceC, 160);
     const gain = Number.parseInt(req.body.gain, 10);
     if (!text || !choiceA || !choiceB) return res.status(400).json({ error: 'Question + A + B obligatoires' });
-    run('UPDATE questions SET is_active=0 WHERE is_active=1');
+    await run('UPDATE questions SET is_active=0 WHERE is_active=1');
     const imageUrl = req.file ? '/uploads/'+req.file.filename : cleanImageUrl(req.body.imageUrl);
-    run('INSERT INTO questions (text,choice_a,choice_b,choice_c,gain,image_url,is_active,date) VALUES (?,?,?,?,?,?,1,?)',
+    await run('INSERT INTO questions (text,choice_a,choice_b,choice_c,gain,image_url,is_active,date) VALUES (?,?,?,?,?,?,1,?)',
       [text, choiceA, choiceB, choiceC||'', Number.isFinite(gain) && gain > 0 ? Math.min(gain, 10000000) : 2000, imageUrl, getToday()]);
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
-app.get('/api/admin/participants', requireAdmin, (req, res) => {
+app.get('/api/admin/participants', requireAdmin, async (req, res) => {
   try {
-    const q = getActiveQuestion();
+    const q = await getActiveQuestion();
     if (!q) return res.json({ participants: [] });
-    res.json({ participants: all('SELECT r.name,r.phone,r.answer,u.gender,u.age,u.city FROM responses r LEFT JOIN users u ON u.phone=r.phone WHERE r.date=? AND r.question_id=?', [getToday(), q.id]) });
+    res.json({ participants: await all('SELECT r.name,r.phone,r.answer,u.gender,u.age,u.city FROM responses r LEFT JOIN users u ON u.phone=r.phone WHERE r.date=? AND r.question_id=?', [getToday(), q.id]) });
   } catch (err) { res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
-app.post('/api/admin/winner', requireAdmin, (req, res) => {
+app.post('/api/admin/winner', requireAdmin, async (req, res) => {
   try {
     const name = cleanText(req.body.name, 60);
     const phone = cleanPhone(req.body.phone);
     if (!name || !phone) return res.status(400).json({ error: 'DonnÃ©es manquantes' });
-    const q = getActiveQuestion();
-    const user = get('SELECT id FROM users WHERE phone=?', [phone]);
-    run('INSERT INTO winners (user_id,question_id,name,phone,gain,question_text,date) VALUES (?,?,?,?,?,?,?)',
+    const q = await getActiveQuestion();
+    const user = await get('SELECT id FROM users WHERE phone=?', [phone]);
+    await run('INSERT INTO winners (user_id,question_id,name,phone,gain,question_text,date) VALUES (?,?,?,?,?,?,?)',
       [user?user.id:null, q?q.id:null, name, phone, q?q.gain:2000, q?q.text:'', getToday()]);
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
-app.get('/api/admin/insights', requireAdmin, (req, res) => {
+app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = Number.parseInt(req.params.id, 10);
+    if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'Utilisateur invalide' });
+    const user = await get('SELECT id, phone FROM users WHERE id=?', [id]);
+    if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' });
+    await run('DELETE FROM responses WHERE user_id=? OR phone=?', [id, user.phone]);
+    await run('DELETE FROM winners WHERE user_id=? OR phone=?', [id, user.phone]);
+    await run('DELETE FROM users WHERE id=?', [id]);
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Erreur serveur' }); }
+});
+
+app.post('/api/admin/test-data', requireAdmin, async (req, res) => {
+  try {
+    const count = Math.max(1, Math.min(Number.parseInt(req.body.count, 10) || 30, 100));
+    let q = await getActiveQuestion();
+    if (!q) {
+      await run('INSERT INTO questions (text,choice_a,choice_b,choice_c,gain,image_url,is_active,date) VALUES (?,?,?,?,?,?,1,?)',
+        ['[TEST] Tu choisis quoi aujourd’hui ?', 'Option A', 'Option B', 'Option C', 2000, '', getToday()]);
+      q = await getActiveQuestion();
+    }
+
+    const names = ['Awa','Kevin','Mariam','Yao','Fatou','Chris','Nadia','Ibrahim','Sarah','Junior','Aya','Moussa'];
+    const cities = ['Abidjan','Bouake','Yamoussoukro','San-Pedro','Daloa','Korhogo'];
+    const genders = ['Homme','Femme'];
+    const ages = ['15-20','21-25','26-30','31-35','36+'];
+    const interests = ['Mode & Sneakers','Musique','Sport','Tech','Beaute','Business','Food'];
+    const today = getToday();
+
+    for (let i = 0; i < count; i++) {
+      const phone = `+2259000${String(i + 1).padStart(4, '0')}`;
+      const name = `[TEST] ${names[i % names.length]} ${i + 1}`;
+      const gender = genders[i % genders.length];
+      const age = ages[i % ages.length];
+      const city = cities[i % cities.length];
+      const picked = JSON.stringify([interests[i % interests.length], interests[(i + 3) % interests.length]]);
+      const existing = await get('SELECT id FROM users WHERE phone=?', [phone]);
+      if (!existing) {
+        await run('INSERT INTO users (name,phone,gender,age,city,commune,interests) VALUES (?,?,?,?,?,?,?)',
+          [name, phone, gender, age, city, city === 'Abidjan' ? 'Cocody' : '', picked]);
+      }
+      const user = await get('SELECT id FROM users WHERE phone=?', [phone]);
+      const answer = ['A','B','C'][i % 3];
+      const already = await get('SELECT id FROM responses WHERE phone=? AND date=?', [phone, today]);
+      if (!already) {
+        await run('INSERT INTO responses (user_id,question_id,phone,name,answer,date) VALUES (?,?,?,?,?,?)',
+          [user.id, q.id, phone, name, answer, today]);
+      }
+    }
+
+    res.json({ success: true, count });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Erreur serveur' }); }
+});
+
+app.delete('/api/admin/test-data', requireAdmin, async (req, res) => {
+  try {
+    const users = await all("SELECT id, phone FROM users WHERE name LIKE '[TEST]%' OR phone LIKE '+2259000%'");
+    for (const user of users) {
+      await run('DELETE FROM responses WHERE user_id=? OR phone=?', [user.id, user.phone]);
+      await run('DELETE FROM winners WHERE user_id=? OR phone=?', [user.id, user.phone]);
+      await run('DELETE FROM users WHERE id=?', [user.id]);
+    }
+    await run("DELETE FROM questions WHERE text LIKE '[TEST]%'");
+    res.json({ success: true, count: users.length });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Erreur serveur' }); }
+});
+
+app.get('/api/admin/insights', requireAdmin, async (req, res) => {
   try {
     const today = getToday();
-    const q = getActiveQuestion();
-    const totalUsers = get('SELECT COUNT(*) as c FROM users').c;
-    const genderStats = all('SELECT gender, COUNT(*) as count FROM users GROUP BY gender');
-    const ageStats = all('SELECT age, COUNT(*) as count FROM users GROUP BY age ORDER BY age');
-    const cityStats = all('SELECT city, COUNT(*) as count FROM users GROUP BY city ORDER BY count DESC');
-    const communeStats = all("SELECT commune, COUNT(*) as count FROM users WHERE commune!='' GROUP BY commune ORDER BY count DESC");
+    const q = await getActiveQuestion();
+    const totalUsers = (await get('SELECT COUNT(*) as c FROM users')).c;
+    const genderStats = await all('SELECT gender, COUNT(*) as count FROM users GROUP BY gender');
+    const ageStats = await all('SELECT age, COUNT(*) as count FROM users GROUP BY age ORDER BY age');
+    const cityStats = await all('SELECT city, COUNT(*) as count FROM users GROUP BY city ORDER BY count DESC');
+    const communeStats = await all("SELECT commune, COUNT(*) as count FROM users WHERE commune!='' GROUP BY commune ORDER BY count DESC");
 
-    const allU = all('SELECT interests FROM users');
+    const allU = await all('SELECT interests FROM users');
     const interestCounts = {};
     allU.forEach(u => { try { JSON.parse(u.interests||'[]').forEach(i => { interestCounts[i]=(interestCounts[i]||0)+1; }); } catch(e){} });
 
     let todayStats = null;
     if (q) {
-      const tr = all('SELECT r.answer,u.gender,u.age FROM responses r LEFT JOIN users u ON u.phone=r.phone WHERE r.date=? AND r.question_id=?', [today, q.id]);
+      const tr = await all('SELECT r.answer,u.gender,u.age FROM responses r LEFT JOIN users u ON u.phone=r.phone WHERE r.date=? AND r.question_id=?', [today, q.id]);
       const ab={}, gc={}, ac={};
       tr.forEach(r => {
         ab[r.answer]=(ab[r.answer]||0)+1;
@@ -321,7 +422,7 @@ app.get('/api/admin/insights', requireAdmin, (req, res) => {
         question:{ text:q.text, choiceA:q.choice_a, choiceB:q.choice_b, choiceC:q.choice_c } };
     }
 
-    const archive = all(`SELECT q.*,
+    const archive = await all(`SELECT q.*,
       (SELECT COUNT(*) FROM responses r WHERE r.question_id=q.id) as total_responses,
       (SELECT COUNT(*) FROM responses r WHERE r.question_id=q.id AND r.answer='A') as count_a,
       (SELECT COUNT(*) FROM responses r WHERE r.question_id=q.id AND r.answer='B') as count_b,
@@ -329,17 +430,16 @@ app.get('/api/admin/insights', requireAdmin, (req, res) => {
       FROM questions q WHERE q.is_active=0 ORDER BY q.id DESC`);
 
     res.json({ totalUsers, genderStats, ageStats, cityStats, communeStats, interestCounts, todayStats, archive,
-      winners: all('SELECT * FROM winners ORDER BY id DESC'),
-      users: all('SELECT * FROM users ORDER BY id DESC') });
+      winners: await all('SELECT * FROM winners ORDER BY id DESC'),
+      users: await all('SELECT * FROM users ORDER BY id DESC') });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Erreur serveur' }); }
 });
 
-app.get('/api/admin/export', requireAdmin, (req, res) => {
+app.get('/api/admin/export', requireAdmin, async (req, res) => {
   try {
-    const users = all('SELECT * FROM users ORDER BY id');
-    const responses = all('SELECT r.*,u.gender,u.age,u.city,u.commune FROM responses r LEFT JOIN users u ON u.phone=r.phone ORDER BY r.date DESC');
-    const winners = all('SELECT * FROM winners ORDER BY date DESC');
-    const questions = all('SELECT * FROM questions ORDER BY id DESC');
+    const users = await all('SELECT * FROM users ORDER BY id');
+    const responses = await all('SELECT r.*,u.gender,u.age,u.city,u.commune FROM responses r LEFT JOIN users u ON u.phone=r.phone ORDER BY r.date DESC');
+    const winners = await all('SELECT * FROM winners ORDER BY date DESC');
     let csv = '\uFEFF=== UTILISATEURS ===\nID;Prénom;WhatsApp;Genre;Âge;Ville;Commune;Intérêts\n';
     users.forEach(u => { const i=(() => { try{return JSON.parse(u.interests||'[]').join(', ');}catch(e){return '';} })(); csv+=[u.id,u.name,u.phone,u.gender,u.age,u.city,u.commune,i].map(csvCell).join(';')+'\n'; });
     csv+=`\n\n=== RÉPONSES ===\nPrénom;WhatsApp;Réponse;Genre;Âge;Ville;Date\n`;
@@ -356,15 +456,25 @@ app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.
 
 // ===================== START =====================
 async function startServer() {
-  const SQL = await initSqlJs();
-  if (fs.existsSync(DB_PATH)) { db = new SQL.Database(fs.readFileSync(DB_PATH)); }
-  else { db = new SQL.Database(); }
+  if (process.env.DATABASE_URL) {
+    dbMode = 'postgres';
+    const { Pool } = require('pg');
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false }
+    });
+    await pool.query('SELECT 1');
+  } else {
+    dbMode = 'sqlite';
+    const SQL = await initSqlJs();
+    if (fs.existsSync(DB_PATH)) { db = new SQL.Database(fs.readFileSync(DB_PATH)); }
+    else { db = new SQL.Database(); }
+  }
 
-  db.run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, phone TEXT UNIQUE NOT NULL, gender TEXT, age TEXT, city TEXT, commune TEXT DEFAULT '', interests TEXT DEFAULT '[]', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
-  db.run(`CREATE TABLE IF NOT EXISTS questions (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, choice_a TEXT NOT NULL, choice_b TEXT NOT NULL, choice_c TEXT DEFAULT '', gain INTEGER DEFAULT 2000, image_url TEXT DEFAULT '', is_active INTEGER DEFAULT 1, date TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
-  db.run(`CREATE TABLE IF NOT EXISTS responses (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, question_id INTEGER, phone TEXT NOT NULL, name TEXT, answer TEXT NOT NULL, date TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(phone, date))`);
-  db.run(`CREATE TABLE IF NOT EXISTS winners (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, question_id INTEGER, name TEXT NOT NULL, phone TEXT NOT NULL, gain INTEGER DEFAULT 2000, question_text TEXT DEFAULT '', date TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
-  saveDb();
+  await run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, phone TEXT UNIQUE NOT NULL, gender TEXT, age TEXT, city TEXT, commune TEXT DEFAULT '', interests TEXT DEFAULT '[]', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
+  await run(`CREATE TABLE IF NOT EXISTS questions (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, choice_a TEXT NOT NULL, choice_b TEXT NOT NULL, choice_c TEXT DEFAULT '', gain INTEGER DEFAULT 2000, image_url TEXT DEFAULT '', is_active INTEGER DEFAULT 1, date TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
+  await run(`CREATE TABLE IF NOT EXISTS responses (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, question_id INTEGER, phone TEXT NOT NULL, name TEXT, answer TEXT NOT NULL, date TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(phone, date))`);
+  await run(`CREATE TABLE IF NOT EXISTS winners (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, question_id INTEGER, name TEXT NOT NULL, phone TEXT NOT NULL, gain INTEGER DEFAULT 2000, question_text TEXT DEFAULT '', date TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
 
   app.listen(PORT, () => {
     console.log(`\n🔥 PREDIKT Backend lancé sur http://localhost:${PORT}`);
